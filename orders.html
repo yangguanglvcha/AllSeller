@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title></title>
+		<link rel="stylesheet" type="text/css" href="extjs4.2.1/resources/css/ext-all.css">
+		<link rel="stylesheet" type="text/css" href="css/schedule.css">	
+		<script src="extjs4.2.1/ext-all.js"></script>
+		<script src="extjs4.2.1/locale/ext-lang-zh_CN.js"></script>
+	</head>
+	<body>
+		<script>
+		Ext.onReady(function(){ 				
+				Ext.regModel('ordermodel',{
+					//idProperty:'ryxx_id',
+					fields:['id','orderno','orderdate','departno','departname','sellername','sellertel','orderstate','ordertype','orderdesc']
+				});
+				Ext.regModel('detailmodel',{
+					fields:['id','orderno','itemno','color','size','num','price','othermsg']
+				});	
+				
+
+							
+				Ext.regModel('ordermodel',{
+				   fields:['orderstate']
+				});
+				// var typestore = new Ext.data.Store({
+				//    model:'ordermodel',
+				//    data:[{orderstate:'待配送'},{ordersate:'已发货'}]
+				// });
+				
+				Ext.regModel('provinceInfo',{
+					fields:[{name:'name'},{name:'id'}]
+				});
+				
+				var provinceStore = Ext.create('Ext.data.Store',{
+					model:'provinceInfo',
+					data:[]
+			
+				});
+				
+				Ext.regModel('cityInfo',{
+					fields:[{name:'province'},{name:'name'},{name:'id'}]
+				});
+				
+				
+				Ext.regModel('departInfo',{
+					fields:[{name:'departname'},{name:'departno'}]
+				});
+
+
+				Ext.regModel('model',{fields:[
+					'id','name','parentid','shortname','leveltype']
+				});
+				var mystore = new Ext.data.Store({
+					model:'model',
+					autoLoad:'true',
+					proxy:{
+						type:'ajax',
+						url:'ctl_region.fsp?proc=getpro',
+						reader:{
+							type:'json',
+							root:'rows'
+						}
+					}
+				})
+				var citystore = new Ext.data.Store({
+					model:'model',
+					//autoLoad:'true',
+					proxy:{
+						type:'ajax',
+						url:'ctl_region.fsp?proc=getcity',
+						reader:{
+							type:'json',
+							root:'rows'
+						}
+					}
+				});
+				var townstore = new Ext.data.Store({
+					model:'model',
+					//autoLoad:'true',
+					proxy:{
+						type:'ajax',
+						//原来写成了utl:'ctl_region.fsp?proc=gettown',
+						url:'ctl_region.fsp?proc=gettown',
+						reader:{
+							type:'json',
+							root:'rows'
+						}
+					}
+				});			
+				
+				var departStore = Ext.create('Ext.data.Store',{
+					model:'departInfo',
+					data:[
+						{departname:'办公室',departno:'W070'},
+						{departname:'工会',departno:'W099'},
+						{departname:'企管部',departno:'W071'},
+						{departname:'国内营销部',departno:'W062'},
+					]
+				});				
+   
+				
+				var toolbar = new Ext.toolbar.Toolbar({
+					items:[
+						 '请输入用户编号',
+						 {xtype:'textfield',id:'usernoinput',name:'userno',width:60},						
+						 '请输入用户密码',
+						 {xtype:'textfield',id:'userpwdinput',name:'userpwd',width:80},		
+						 '-',															  
+				         {text:'验证用户',iconCls:'useradd',handler:function(){
+				           var cValue = Ext.getCmp('usernoinput').getValue(); 
+						   var cPwd = Ext.getCmp('userpwdinput').getValue(); 	
+						   if (cValue == ''|cPwd ==''){
+							   Ext.Msg.alert("提示","内容输入不完整");
+							   return
+						   }
+						   var senddata = {userno:cValue,userpwd:cPwd};
+						    Ext.Ajax.request({
+						        url:'ctl_orders.fsp?proc=getuser',						
+						        jsonData:senddata,													  
+						        callback:function(options,success,response){						            
+									var obj = JSON.parse(response.responseText);
+									if (obj.total == 0){
+										Ext.Msg.alert("提示","用户信息不正确");
+										Ext.getCmp('departname').setValue('')
+										Ext.getCmp('sellername').setValue('')
+										Ext.getCmp('usertel').setValue('')										
+										return
+									}
+									var username = obj.rows[0].username;
+									var departname = obj.rows[0].departname;
+									var usertel = obj.rows[0].usertel;
+									var departno = obj.rows[0].departno;
+									console.log('departname:',obj.rows[0].departname)
+									//console.log('username:',username)
+									Ext.getCmp('departname').setValue(departname)
+									Ext.getCmp('sellername').setValue(username)
+									Ext.getCmp('usertel').setValue(usertel)															
+						        }
+						    })						   
+				        }},						
+						 '所在部门',
+						 {xtype:'textfield',
+						  id:'departname',
+						  readOnly:true,
+						  name:'departname',
+						  width:80
+						 },
+						 '订货人姓名',
+						{xtype:'textfield',
+						readOnly:true,
+						id:'sellername',
+						name:'sellername',
+						width:60
+						},
+						'电话',
+						{xtype:'textfield',id:'usertel',name:'sellertel',readOnly:true,width:80},
+						{xtype:'textfield',id:'departno',name:'departno',hidden:true},	
+						{xtype:'textfield',id:'orderdesc',name:'orderdesc',hidden:true},
+						{xtype:'textfield',id:'ordermoney',name:'ordermoney',hidden:true},
+						{xtype:'textfield',name:'orderstate',id:'orderstate',hidden:true},	
+						{xtype:'textfield',name:'recaddress',id:'recaddress',hidden:true},
+						{xtype:'textfield',name:'ordertype',id:'ordertype',hidden:true},
+						//很奇怪,如果在form中增加hidden,则整个部分都不显示
+						'-',			 
+						{text:'增加订单',iconCls:'add',handler:add},
+						'-',			 
+						'-',			 
+						'-',			 						 
+						{text:'订单提交',iconCls:'order',handler:save,id:'orderbutton',style:{backgroundColor:"lightblue"}}
+					]
+				});
+				
+				//Ext.getCmp('orderbutton').btnEl.setStyle('background-color',"yellow");
+				
+				var form = new Ext.form.Panel({		
+					tbar:[toolbar],
+					//height:300,
+					autoHeight:'true',
+					fieldDefaults: {
+						labelWidth: 70,
+						labelAlign: "left",
+						//flex: 1,	//
+						margin: 2
+					},
+					/*举例：
+					flex:1
+					flex:1
+			   表示这2个元素各占用总宽度的1/2			   
+				   flex:1
+				   flex:2
+				   flex:2
+			   表示这3个元素占的宽度分别为1/(1+2+2),2/(1+2+2),2/(1+2+2)
+					*/
+					items:[	
+							//订单明细部分,第1个container,订单号/日期/姓名/电话
+							{
+								xtype:'container',
+								layout:{
+									type:'column',
+									//align:'left'
+								},
+								width:900,
+								//autoHeight:'true',								
+								items:[
+									{xtype:'textfield',fieldLabel:'订单号',name:'orderno',id:'orderno',readOnly:'true',width:220},
+									{xtype:'datefield',fieldLabel:'订单日期',format:'Y-m-d',id:'datesel',name:'orderdate',width:170},
+									{xtype:'textfield',fieldLabel:'收货人姓名',name:'receiver',id:'receiver',width:140},
+									{xtype:'textfield',fieldLabel:'收货人电话',name:'receivertel',id:'receivertel',width:160},
+									//{xtype:'textfield',fieldLabel:'测试内容',name:'iver',id:'recer',width:180},
+									{
+										xtype:'radiogroup',
+										fieldLabel:'订单类型',
+										id:'selordertype',
+										//columns:2,
+										width:180,
+										items:[
+											{boxLabel:'快递',name:'selordertype',checked:'true'},
+											{boxLabel:'自提',name:'selordertype'}],
+									},	
+								]
+							},
+							//订单明细部分,第2个container,地址,省市区联动
+							{
+								xtype:'container',
+								layout:'hbox',
+								//width:900,
+								//autoHeight:'true',
+								items:[	
+										//items中是省市区联动的地址
+										{
+											xtype:'combo',
+											fieldLabel:'收货人地址',
+											emptyText:'省自治区',
+									        queryMode:'remote',
+									        displayField:'name',
+											valueField:'id',
+									        store:mystore,
+											id:'areacombo',	
+											name:'areacombo',								
+											//width:100,
+											listeners:{
+												select:function(combo,record,index){	
+													Ext.getCmp('citycombo').clearValue();
+													citystore.load({									
+														url:'ctl_region.fsp?proc=getcity',
+														params:{areaquery:Ext.getCmp('areacombo').value}
+													})
+												}
+											}
+										},	
+										{
+											xtype:'combo',
+											store:citystore,
+											queryMode:'remote',
+											displayField:'name',
+											valueField:'id',
+											id:'citycombo',
+											name:'citycombo',
+											emptyText:'地市',
+											//width:90,
+											listeners:{
+												 select:function(combo,record,index){	
+													Ext.getCmp('towncombo').clearValue();
+													townstore.load({									
+														url:'ctl_region.fsp?proc=gettown',
+														params:{query:Ext.getCmp('citycombo').value}
+													})
+												 },
+												expand:function(combo,opt){								
+													if (Ext.isEmpty(Ext.getCmp('areacombo').value)){
+														Ext.getCmp('citycombo').clearValue();	
+														Ext.Msg.alert('提示','请选择区域')			
+													}else{
+														var proxy = Ext.getCmp('citycombo').getStore().getProxy();
+														proxy.setExtraParam('areaquery',Ext.getCmp('areacombo').value)
+													}								
+												}
+											}
+										},
+										{
+											xtype:'combo',
+											store:townstore,
+											queryMode:'remote',
+											displayField:'name',
+											//valueField:'MergerName',
+											valueField:'id',
+											//width:90,	
+											id:'towncombo',
+											name:'towncombo',
+											emptyText:'区或县',
+											listeners:{
+												expand:function(combo,opt){
+													if(Ext.isEmpty(Ext.getCmp('citycombo').value)){
+														Ext.getCmp('towncombo').clearValue();
+														Ext.Msg.alert('提示','没有选择地市')
+													}else{
+														// var proxy = Ext.getCmp('towncombo').getStore().getProxy();
+														// proxy.setExtraParam('query',Ext.getCmp('citycombo').value)
+													}
+												}
+											}
+										},
+										{
+											xtype:'textfield',
+											//fieldLabel:'详细地址',
+											emptyText:'详细地址',
+											id:'detailadd',
+											name:'detailadd',
+											width:210
+										},
+										
+										// {
+										// 	xtype:'textfield'	,
+										// 	hidden:'true',
+										// 	id:'recaddress'
+										// },
+										
+										//{xtype:'textfield',fieldLabel:'收货人地址',name:'recaddress',id:'recaddress',width:400},
+										// {xtype:'button',text:'获取订单类型',handler:function(){
+										// 	var ordertype = Ext.getCmp('selordertype').getChecked()[0].boxLabel;
+										// 	console.log('订单类型',ordertype)
+										// 	Ext.getCmp('ordertype').setValue(Ext.getCmp('selordertype').getChecked()[0].boxLabel);											
+										// 	console.log('类型保存值',Ext.getCmp('ordertype').value)
+										// }},
+										//获取地址按钮测试
+										{	//xtype:'button',text:'获取地址',handler:function(){
+											 //console.log('地址',Ext.getCmp('areacombo').value)
+											// console.log('地址2',Ext.getCmp('citycombo').value)
+											// console.log('地址3',Ext.getCmp('towncombo').getValue())
+											// console.log('地址4',Ext.getCmp('areacombo').getRawValue())
+											//console.log('地址5',Ext.getCmp('citycombo').getRawValue())
+											//地址6符合要求
+											// var seladd = Ext.getCmp('areacombo').getRawValue()+Ext.getCmp('citycombo').getRawValue()+Ext.getCmp('towncombo').getRawValue();
+											// var address = seladd + Ext.getCmp('detailadd').value
+											// console.log('保存地址',address)
+											// console.log('地址6',Ext.getCmp('areacombo').getRawValue()+Ext.getCmp('citycombo').getRawValue()+Ext.getCmp('towncombo').getRawValue())
+											// var senddata = {id:Ext.getCmp('towncombo').getValue()}
+											// Ext.Ajax.request({
+											// 	url:'ctl_region.fsp?proc=getaddress',
+											// 	jsonData:senddata,
+											// 	method:'POST',
+											// 	callback:function(options,success,res){
+											// 		var result = JSON.parse(res.responseText)
+											// 		var mername = result.rows[0].mergername;													
+											// 		console.log('地址',res.responseText)
+											// 		console.log('地址',result.rows[0].mergername)
+											// 	}
+											// })
+											// }
+										}	//获取地址按钮结束										
+									]	//订单第2部分,items结束
+							}			//订单第2部分，container结束									
+					]					//form表单items结束
+				})	
+				var orderno = Ext.getCmp('orderno').getValue();
+				
+				var store = new Ext.data.Store({
+					model:'detailmodel',
+					autoLoad:true,
+					proxy:{
+						type:'ajax',
+						url:'ctl_orders.fsp?proc=getdetail&orderno='+orderno,
+						reader:{
+							type:'json',
+							root:'rows'
+						}
+					}
+				})
+						
+				var grid = new Ext.grid.Panel({
+					// tbar:[toolbar],
+					store:store,
+					height:300,
+					columns:[
+						{header:'货号',dataIndex:'itemno',editor:{xtype:'textfield'}},
+						{header:'颜色',dataIndex:'color',editor:{xtype:'textfield'}},
+						{header:'尺码',dataIndex:'size',editor:{xtype:'textfield'}},
+						{header:'数量',dataIndex:'num',editor:{xtype:'textfield'}},
+						{header:'单价',dataIndex:'price',editor:{xtype:'textfield'}},
+					],
+					plugins:[
+						Ext.create('Ext.grid.plugin.CellEditing',{
+							clicksToEdit:1
+						})
+					]
+				})		 			
+				
+				var panel = new Ext.panel.Panel({
+					renderTo:Ext.getBody(),
+					items:[
+						form,
+						{
+							xtype:'fieldset',
+							style:'margin-left:10rpx',
+							title:'货号信息明细表格',
+							items:[
+								{xtype:'button',iconCls:'hhicon',text:'增加货号',handler:addItem,id:'additem',disabled:'true'},
+								//{xtype:'button',text:'修改货号'},
+								{xtype:'button',text:'删除货号',iconCls:'del'},
+								grid],
+						}											
+					]
+				})
+				// var viewport = new Ext.container.Viewport({
+				// 	items:[panel]
+				// })
+				
+				//添加货号
+				function addItem(){
+					//将收货人/地址/电话设为只读
+					// Ext.getCmp("receiver").setReadOnly(true);
+					// Ext.getCmp("receivertel").setReadOnly(true);
+					// Ext.getCmp("recaddress").setReadOnly(true);
+					var record = Ext.create('detailmodel',{
+						orderno:Ext.getCmp('orderno').getValue(),
+						itemno:'',
+						color:'',
+						size:'',
+						num:'',
+						price:''
+					});
+					store.insert(store.getCount(),record);
+					// console.log('addItem中record:',record)
+					// var rec = JSON.stringify(record)
+					// console.log('num',record.data.num)
+					// var money = record.data.num*record.data.price
+					// Ext.getCmp('ordermoney').setValue(ordermoney+money)					
+				}
+				
+				//新增订单
+				function add(){
+					/*先要形成订单号,订单号的生成规则为departno+20200123+三位随机数+id,长度20位
+					*先到orders表中查最后1条记录，获取其id，加1
+					*如果orders表中是空的，
+					*/	
+				    //新增订单前,必须先验证用户,如果用户名,所在部门和电话有一个是空的,不继续进行
+					// Ext.getCmp('departname').setValue(departname)
+					// Ext.getCmp('sellername').setValue(username)
+					// Ext.getCmp('usertel').setValue(usertel)
+					//console.log(Ext.getCmp('departname').getValue()==false)
+					if((!Ext.getCmp('departname').getValue())|(!Ext.getCmp('sellername').getValue())|(!Ext.getCmp('usertel').getValue())){
+						Ext.Msg.alert("提示","用户信息没有验证");	
+						return
+					}
+				    Ext.getCmp('additem').enable();		//将添加货号按钮设为可用	
+					//将收货人/地址/电话设为可用
+					// Ext.getCmp("receiver").setReadOnly(false);
+					// Ext.getCmp("receivertel").setReadOnly(false);
+					// Ext.getCmp("recaddress").setReadOnly(false);	
+									
+									
+				    var ordermoney = 0;
+				    var date = new Date();
+					var rq = date.toJSON().substr(0, 11).replace(/[-T]/g, '');        
+						
+					var SMax=10000
+					var sj = String(Math.ceil(Math.random() * SMax));				
+
+
+					var result = '';
+					for(var i=0;i<3;i++){
+					  var ranNum = Math.ceil(Math.random() * 25); //生成一个0到25的数字
+					  //大写字母'A'的ASCII是65,A~Z的ASCII码就是65 + 0~25;然后调用String.fromCharCode()传入ASCII值返回相应的字符并push进数组里
+					  result=result+String.fromCharCode(65+ranNum);
+					}										
+			
+				    var orderno = result + rq + '-'+sj
+					Ext.getCmp('orderno').setValue(orderno);
+					Ext.getCmp('orderstate').setValue('待配送');
+					Ext.getCmp('orderdesc').setValue('未导出');
+					
+				}
+				
+				//保存订单数据
+				function save(){
+					Ext.getCmp('additem').disable();
+					Ext.getCmp('ordertype').setValue(Ext.getCmp('selordertype').getChecked()[0].boxLabel);
+					var seladd = Ext.getCmp('areacombo').getRawValue()+Ext.getCmp('citycombo').getRawValue()+Ext.getCmp('towncombo').getRawValue();
+					var address = seladd + Ext.getCmp('detailadd').value					
+					console.log('订单保存值save',Ext.getCmp('ordertype').value)
+					//快递订单地址不能为空
+					if(Ext.getCmp('selordertype').getChecked()[0].boxLabel=='快递'){
+						//保存前需确定地址不能为空
+						if (Ext.isEmpty(Ext.getCmp('areacombo').value)|Ext.isEmpty(Ext.getCmp('citycombo').value)|Ext.isEmpty(Ext.getCmp('towncombo').value)){
+							Ext.Msg.alert('地址信息不完整');
+							return
+						}
+						if(Ext.isEmpty(Ext.getCmp('detailadd').value)){
+							Ext.Msg.alert('详细地址不能为空');
+							return
+						}
+						Ext.getCmp('recaddress').setValue(address);	
+						Ext.getCmp('ordertype').setValue('快递');												
+					}else{
+						Ext.getCmp('recaddress').setValue('');		//自提订单，将地址设为空	
+						Ext.getCmp('orderstate').setValue('已发货');	
+						//Ext.getCmp('ordertype').setValue('自提');	//自提,状态为已发货,已导出
+					}
+					
+					if(Ext.isEmpty(Ext.getCmp('orderno').value)){
+						Ext.Msg.alert('订单号不能为空');
+						return
+					}
+					if(Ext.isEmpty(Ext.getCmp('receiver').value)){
+						Ext.Msg.alert('收货人不能为空');
+						return
+					}
+					if(Ext.isEmpty(Ext.getCmp('receivertel').value)){
+						Ext.Msg.alert('收货人电话不能为空');
+						return
+					}
+						
+					
+					//必须先获取主表数据oValues
+					var oValues = form.getForm().getValues();
+					console.log(oValues);
+					 delete oValues.userno;
+					// delete oValues.userpwdinput-inputEl;
+					var lstRecord = [];
+					var records = store.getModifiedRecords();
+					var records_del = store.getRemovedRecords();
+					for (var index=0;index<records.length;index++){
+						record = records[index];
+						record.data.qystatus = 'modi';    //添加修改标志
+						lstRecord.push(record.data);
+					}
+					for (var index=0;index<records_del.length;index++){
+						record = records_del[index];
+						record.data.qystatus = 'del';  //添加删除编制
+						lstRecord.push(record.data);
+					}
+					//这里是关联表,不是父子表,把data设为空数组,用lstRecord作为想保存的数据
+					var OBJ = {
+		                data:oValues,   //单头数据
+		                rows:lstRecord  //单身数据
+		            };
+					console.log('ajax数据',JSON.stringify(OBJ))
+					
+					console.log('OBJ数据:',JSON.stringify(OBJ))
+					//调用ajax进行保存
+					Ext.Ajax.request({
+						url:'ctl_orders.fsp?proc=saveorders',
+						//把JS对象变为JSON字符串
+						params:JSON.stringify(OBJ),						
+						method:'POST',
+						success:function(response,opts){
+							console.log('saveorders:',response);
+							var result = JSON.parse(response.responseText);
+							//订单保存后,需要把地址/订单号/收货人姓名/电话清空
+							Ext.getCmp('orderno').setValue('');
+							Ext.getCmp('recaddress').setValue('');
+							Ext.getCmp('receiver').setValue('');
+							Ext.getCmp('receivertel').setValue('');
+							Ext.getCmp('detailadd').setValue('');
+							Ext.getCmp('areacombo').clearValue();
+							Ext.getCmp('citycombo').clearValue();
+							Ext.getCmp('towncombo').clearValue();
+							
+							
+							if(result.errno==0){
+								store.reload();    //刷新表格
+								Ext.Msg.alert('提示','订单提交成功');
+								//MsgTip.msg('提示', '数据处理成功',true,1500);//默认1.5秒后自动隐藏 
+							}else{
+								Ext.Msg.alert('提示',result.errmsg);
+							}
+						}
+					})					
+				}
+			
+		
+		})
+		</script>
+	</body>
+</html>
