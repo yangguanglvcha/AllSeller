@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<link rel="stylesheet" type="text/css" href="extjs4.2.1/resources/css/ext-all.css">
+		<link rel="stylesheet" type="text/css" href="css/schedule.css">	
+		<script src="extjs4.2.1/ext-all.js"></script>
+		<script src="extjs4.2.1/locale/ext-lang-zh_CN.js"></script>	
+	</head>
+	<body>
+		<script type="text/javascript" src="js/extCheckToken.js"></script>
+		<script>
+			window.history.forward(1);    //禁止页面后退
+			function clearCookie(){
+				var date=new Date();
+				date.setTime(date.getTime()-10000);
+				var keys=document.cookie.match(/[^ =;]+(?=\=)/g);
+				if (keys) {
+					for (var i =  keys.length; i--;)
+					  document.cookie=keys[i]+"=0; expire="+date.toGMTString()+"; path=/";
+				}
+			};
+			//退出系统,直接关闭网页,注意要写在Ext.onReady外面
+			function closePage(){
+				if(navigator.userAgent.indexOf("Firefox") != -1 || navigator.userAgent.indexOf("Chrome") != -1){
+					window.location.href = "about:blank";
+					window.close();
+				}else{
+					window.opener = null;
+					window.open("", "_self");
+					window.close();
+				}
+			}
+			//clearCookie();
+			Ext.onReady(function(){ 
+				var username = decodeURIComponent(Ext.util.Cookies.get("username"))				
+				var mytoken = Ext.util.Cookies.get("mytoken")
+				check_main();
+				//console.log('main中mytoken:',mytoken)
+				//text1和text2组合,作为下面north区域中的html内容
+				
+				
+				var text1 = (function () {/*
+				  <!DOCTYPE html>
+				  <html>
+					<body>
+					  <div class="contain">
+						<span class="center titletext">金猴集团综合业务平台</span>	
+						<span class="right">目前登录用户
+				*/}).toString().match(/[^]*\/\*([^]*)\*\/\}$/)[1];
+				var text2 = (function () {/*
+						<span>
+						   <a class="logout" onclick="closePage();" href="javascript:window.opener=null;window.close();">							   
+							   退出系统
+						   </a>						   
+						</span>
+					</span>
+					</div>
+					<style>
+						.contain{text-align:center;}						
+						.right{float:right;font-size:14px;}
+						.logout{font-size:14px;}  
+						a{  
+							padding-left:28px;							
+							background:transparent url(../icon/power_quit_24.png) no-repeat 10px center;
+							background-size: contain;
+						}  
+					</style>
+					</body>
+				  </html>        
+				*/}).toString().match(/[^]*\/\*([^]*)\*\/\}$/)[1];				
+		
+				
+				//check();
+				//TabPanel，实现点击树菜单中的选项，跳转到指定的页面
+				var tab = new Ext.TabPanel({
+					region:'center',
+					activeTab:0,
+					tabWidth:120,
+					enableTabScroll:true
+				});
+				
+				//console.log('mytoken',mytoken);
+				//页面框架用Viewport布局
+				var viewport = new Ext.Viewport({
+					layout:'border',
+					items:[
+						//north区域为管理系统标题						
+						{region:'north',
+						 height:28,
+						 //html:'<div class="contain"><span class="center">定牌生产进度系统</span><span><a onclick="closePage();" href="javascript:window.opener=null;window.close();">退出系统</A></span><span class="right">目前登录用户:'+username+'</span></div><style>.contain{ text-align:center;}.center{font-size:20px;}.right{ float:right;}</style>'},												
+						html:text1+username+text2},						
+						/*系统菜单在west区域。west区域为panel,panel的布局为accordion
+						* accordion布局items的第1项是'业务信息'菜单，其xtype为treepanel
+						* treepanel的代码同tree面板相同，如toot,children,listeners等
+						*/
+						{
+							region:'west',
+							xtype:'panel',
+							width:140,
+							id:'west',
+							//layout:'fit',
+							layout:'accordion',
+							title:'系统菜单',
+							iconCls:'sys_menu',
+							collapsible:true,							
+							items:[							
+
+								//2020.3新增的微商城助手部分
+								{
+									title:'微商城助手',
+									xtype:'treepanel',
+									iconCls:'mall',									
+									root:{
+										text:'...',
+										id:'root',
+										expanded:true,
+										children:[
+											{text:'用户注册',id:'sellusers.html',iconCls:'useradd',leaf:true},
+											{text:'订单数据录入',id:'orders.html',iconCls:'schmodify',leaf:true},
+											{text:'订单状态信息',id:'orderstate.html',iconCls:'itemdetail',leaf:true},
+											{text:'相关报表查询',id:'',iconCls:'data_report',leaf:true}
+										]
+									},
+									listeners:{
+										itemClick:function(veiw,rec){
+											//check();
+											//console.log('rec:',rec);
+											var n = tab.getComponent(rec.raw.id);
+											//如果为根节点或非末级节点,不相应点击事件
+											if(rec.raw.id=='root'){return};
+											if(!rec.raw.leaf){return};
+											if(!n){
+												n = tab.add({
+													'id':rec.raw.id,
+													'title':rec.raw.text,
+													closable:true,
+													//sideBarChange:false,
+													//通过html载入目标页面
+													html:'<iframe scrolling="auto" frameborder="0" width="100%" height="100%" src="'+rec.raw.id+'"></iframe>'
+												});
+											}
+											tab.setActiveTab(n);
+										}
+									}  //listeners结束 
+								},   //以上作为accordion的items数组中的第一部分,下面系统设置是第二部分
+								{
+									title:'生产进度',
+									xtype:'treepanel',
+									iconCls:'schedule',									
+									root:{
+										text:'...',
+										id:'root',
+										expanded:true,
+										children:[
+											{text:'生产进度录入',id:'schdetail1025.html',iconCls:'schdetail',leaf:true},
+											{text:'进度明细修改',id:'schmodify.html',iconCls:'schmodify',leaf:true},
+											{text:'明细货号查询',id:'itemdetail.html',iconCls:'itemdetail',leaf:true},
+											{text:'进度报表查询',id:'schreport.html',iconCls:'data_report',leaf:true}
+										]
+									},
+									listeners:{
+										itemClick:function(veiw,rec){
+											//check();
+											//console.log('rec:',rec);
+											var n = tab.getComponent(rec.raw.id);
+											//如果为根节点或非末级节点,不相应点击事件
+											if(rec.raw.id=='root'){return};
+											if(!rec.raw.leaf){return};
+											if(!n){
+												n = tab.add({
+													'id':rec.raw.id,
+													'title':rec.raw.text,
+													closable:true,
+													//sideBarChange:false,
+													//通过html载入目标页面
+													html:'<iframe scrolling="auto" frameborder="0" width="100%" height="100%" src="'+rec.raw.id+'"></iframe>'
+												});
+											}
+											tab.setActiveTab(n);
+										}
+									}  //listeners结束 
+								},   //以上作为accordion的items数组中的第一部分,下面系统设置是第二部分								
+								{
+									title:'基础资料',
+									xtype:'treepanel',									
+									iconCls:'basicdata',									
+									root:{
+										text:'...',	
+										expanded:true,									
+										id:'root',
+										children:[											
+											/*在树的节点中，用id标识想要跳转的前端页面
+											* 然后监听itemClick事件，通过html的ifame实现页面跳转
+											* ifame中的src="'+rec.raw.id+'"可以指定拟跳转的页面
+											* rec.raw.id所代表的页面，为各个前端功能页面
+											* 对后台的不同请求，在各前端功能页面中实现
+											*/
+											{text:'区域设置',id:'area2.html',iconCls:'area',leaf:true},
+											{text:'基础信息',expanded: true,children:[												
+												{text:'厂家信息',id:'cjxx1.html',iconCls:'cjicon',leaf:true},
+												{text:'货号信息',id:'hhxx.html',iconCls:'hhicon',leaf:true}
+											]},
+											//{text:'组织管理',id:'grid7.html',leaf:true}
+										]
+									},
+									listeners:{
+										itemClick:function(veiw,rec){
+											//check();
+											//console.log('rec:',rec);
+											var n = tab.getComponent(rec.raw.id);
+											//如果为根节点或非末级节点,不相应点击事件
+											if(rec.raw.id=='root'){return};
+											if(!rec.raw.leaf){return};
+											if(!n){
+												n = tab.add({
+													'id':rec.raw.id,
+													'title':rec.raw.text,
+													closable:true,
+													//通过html载入目标页面
+													html:'<iframe scrolling="auto" frameborder="0" width="100%" height="100%" src="'+rec.raw.id+'"></iframe>'
+												});
+											}
+											tab.setActiveTab(n);
+										}
+									}  //listeners结束 
+								},     //以上作为accordion的items数组中的第二部分
+								{
+									title : '系统设置',  
+									xtype:'treepanel',		
+									border : false,  
+									iconCls:'sys_set',
+									root:{
+										text:'...',	
+										expanded:true,									
+										id:'root',
+										children:[																						
+											{text:'用户设置',id:'usermanage.html',iconCls:'userset',leaf:true},
+											{text:'权限分配',id:'userright1108.html',iconCls:'userright',leaf:true},
+											{text:'新用户注册',id:'usersign.html',iconCls:'useradd',leaf:true},
+											{text:'帮助文件',id:'help.htm',iconCls:'help',leaf:true}
+										]
+									},
+									listeners:{
+										itemClick:function(veiw,rec){
+											//check();											
+											var n = tab.getComponent(rec.raw.id);
+											//如果为根节点或非末级节点,不相应点击事件
+											if(rec.raw.id=='root'){return};
+											if(!rec.raw.leaf){return};
+											if(!n){
+												n = tab.add({
+													'id':rec.raw.id,
+													'title':rec.raw.text,
+													closable:true,
+													//通过html载入目标页面
+													html:'<iframe scrolling="auto" frameborder="0" width="100%" height="100%" src="'+rec.raw.id+'"></iframe>'
+												});
+											}
+											tab.setActiveTab(n);
+										}
+									}  //listeners结束 
+									//html : '<div id="tree3" style="overflow:auto;width:100%;height:100%"></div>'  
+								}   
+							]   //west区域中的item数组内容结束
+						},      //viewport中west区域代码结束	
+						tab,    //viewport中的center区域,用页签tabpanel实现
+						{  
+							region : 'south',  
+							minHeight : 25,  							
+							html:"<div align='center'>版权所有 绿茶工作室 © 数据管理平台</div>"  
+						}   
+					]   //viewport中items配置结束					
+				});   //viewport
+				
+		
+			})
+		</script>
+	</body>
+</html>

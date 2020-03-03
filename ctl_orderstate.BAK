@@ -154,7 +154,7 @@ Define Class ctl_orderstate As ctl_public_sync_right Of ctl_public_sync_right.pr
 		
 	xx2=newobject("QiyuExcelEngine","QiyuExcelEngine.prg")
 	*xx2.ParseFile("orderreport.xls")	
-	xx2.ParseFile("orderreport.xml")	
+	xx2.ParseFile("orderreport.xlm")	
 	*xx2.SetValue("顺丰格式地址导出","标题")
 	
 	

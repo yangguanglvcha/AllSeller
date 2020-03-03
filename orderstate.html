@@ -33,13 +33,13 @@
 					}
 				});
 				
-				var orderno = ''
+				//var orderno = ''
 				var detailStore = new Ext.data.Store({
 					model:'detailmodel',
 					autoLoad:'true',
 					proxy:{
 						type:'ajax',
-						url:'ctl_orderstate.fsp?proc=getdetail&orderno='+orderno,
+						url:'ctl_orderstate.fsp?proc=getdetail',
 						reader:{
 							type:'json',
 							root:'rows'
@@ -48,7 +48,8 @@
 				});
 				var detailgrid = new Ext.grid.Panel({
 					store:detailStore,					
-					autoHeight:true,
+					//autoHeight:true,
+					height:180,
 					columns:[
 						{header:'货号',dataIndex:'itemno'},
 						{header:'颜色',dataIndex:'color'},
@@ -60,8 +61,10 @@
 				
 				var ordergrid = new Ext.grid.Panel({					
 					store:orderStore,
+					autoScroll:true,
 					//tbar:[toolbar],					
-					autoHeight:true,
+					//autoHeight:true,
+					height:400,
 					columns:[
 						{header:'订单号',dataIndex:'orderno',width:120},
 						{header:'订单日期',dataIndex:'orderdate',width:80},
@@ -206,19 +209,17 @@
 								//async:false,//同步请求数据
 								jsonData:senddata,
 								success: function(response, opts) {	
-									//导出后,应该将已导出数据的orderdesc改为'已导出'
-									
 									var obj = Ext.decode(response.responseText);     
-									console.log('obj:',obj);//可以到火狐的firebug下面看看obj里面的结构     
-									console.log('obj:',obj.file);//可以到火狐的firebug下面看看obj里面的结构     
-									//window.location.href="down/"+obj.file;	
-									window.location.href=obj.file;	
+									//console.log('obj:',obj);//可以到火狐的firebug下面看看obj里面的结构     
+									//console.log('obj:',obj.file);//可以到火狐的firebug下面看看obj里面的结构     
+									window.location.href="down/"+obj.file;	
+									//window.location.href=obj.file;	
 									Ext.Msg.alert('提示','导出成功')
 								},
 								failure:function(reponse,opts){
 									Ext.Msg.alert('提示',response.responseText)
-								}
-							})							
+								},								
+							});							
 						}},
 					]
 				})
@@ -278,9 +279,11 @@
 					if (sel.length==0){
 						Ext.Msg.alert("提示","没有选择任何订单");
 						return;
-					}					
-					console.log('订单信息1',sel[0].data.orderno)//可以获取到订单号		
-					detailStore.getProxy().setExtraParam('orderno',sel[0].data.orderno);
+					}	
+					var orderno = sel[0].data.orderno;
+					//console.log('订单信息',sel)//可以获取到订单号	
+					//console.log('订单信息1',sel[0].data.orderno)//可以获取到订单号		
+					detailStore.getProxy().setExtraParam('orderno',orderno);
 		            detailStore.reload(); 
 				}
 				var form = new Ext.form.Panel({

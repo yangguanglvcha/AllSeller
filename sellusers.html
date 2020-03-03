@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title></title>
+		<link rel="stylesheet" type="text/css" href="extjs4.2.1/resources/css/ext-all.css">
+		<script src="extjs4.2.1/ext-all.js"></script>
+		<script src="extjs4.2.1/locale/ext-lang-zh_CN.js"></script>
+	</head>
+	<body>
+		<script>
+			Ext.onReady(function(){	
+				Ext.regModel('departInfo',{
+					fields:[{name:'departname'},{name:'departno'}]
+				});
+				var departStore = Ext.create('Ext.data.Store',{
+					model:'departInfo',
+					data:[
+						{departname:'鞋业办公室',departno:'W060'},
+						{departname:'财务核算部',departno:'W098'},
+						{departname:'结算中心',departno:'W097'},
+						{departname:'后勤保障部',departno:'W063'},
+						{departname:'团购事业部',departno:'W067'},
+						{departname:'出口事业部',departno:'W061'},
+						{departname:'制造事业部',departno:'W065'},
+						{departname:'国内营销部',departno:'W062'},
+						{departname:'淄博济南公司',departno:'W055'},
+						{departname:'青岛烟威公司',departno:'W056'},
+						{departname:'京津华北公司',departno:'W057'},
+						{departname:'中原鲁西南公司',departno:'W059'},
+						{departname:'黑龙江吉林公司',departno:'W053'},
+						{departname:'辽宁公司',departno:'W058'},
+					]
+				});
+				//定义函数: 验证再次输入的密码是否一致
+				Ext.apply(Ext.form.VTypes, {
+					confirmPwd: function (value, field) {
+					 // field 的 confirmPwd 属性
+						if (field.confirmPwd) {
+							var first = field.confirmPwd.first;
+							var second = field.confirmPwd.second;
+				
+							this.firstField = Ext.getCmp('newpwd');
+							this.seconField = Ext.getCmp('conpwd');
+							var firstPwd = this.firstField.getValue();
+							var secondPwd = this.seconField.getValue();
+							if (firstPwd == secondPwd) {
+								return true;
+							} else {
+								return false;
+							}
+						}
+					},
+					confirmPwdText:'两次输入的密码不一致！',
+				});
+				
+				var userForm = new Ext.form.Panel({
+					renderTo:Ext.getBody(),
+					title:'用户信息注册',
+					width:500,
+					height:300,
+					margin:20,	
+					defaultType: 'textfield',
+					defaults: {
+						anchor: '100%',	//默认与表单等宽
+					},
+					fieldDefaults: {
+						labelWidth: 80,
+						labelAlign: "left",
+						flex: 1,
+						margin: 2
+					},
+					items:[
+						{
+							xtype:'container',
+							layout:'hbox',
+							items:[
+								{xtype:'textfield',fieldLabel:'用户编号',name:'userno'},
+								{
+									xtype:'textfield',
+									fieldLabel:'用户姓名',
+									name:'username',
+									regex : /[\u4e00-\u9fa5]/,     //正则表达式在/...../之间. [\u4e00-\u9fa5] : 只能输入中文.    
+									regexText:"只能输入中文",       //正则表达式错误提示    
+									allowBlank : false             //此验证依然有效.不许为空.    
+								}
+							]
+						},
+						{
+							xtype:'container',
+							layout:'hbox',
+							items:[
+								{
+									xtype: "textfield",
+									id: 'newpwd',
+									name: 'newpwd',
+									cls: "label_input",
+									fieldCls: 'login_password',
+									width: 300,
+									fieldLabel: '用户密码',
+									//margin: '20,10,10,10',								
+									inputType: 'password'
+								},{ name:'conpwd',
+									id:'conpwd',
+									fieldLabel:'确认密码',
+									xtype:'textfield',
+									vtype:'confirmPwd',
+									cls: "label_input",							
+									width: 300,
+									//margin: '20,10,10,10',								
+									inputType: 'password',
+									// 调用密码验证中的定义的属性
+									confirmPwd: {
+										first: 'newpwd',
+										second:'conpwd'
+									}
+								},
+							]
+						},
+						{
+							xtype:'container',
+							layout:'hbox',
+							items:[
+								{xtype:'combo',
+								store:departStore,
+								fieldLabel:'部门名称',
+								name:'departname',
+								queryMode:'local',
+								displayField:'departname',
+								fieldValue:'departno'},
+								{xtype:'textfield',
+								fieldLabel:'手机号码',
+								name:'usertel',
+								regex: /^(13[0-9]|15[0-9]|18[0-9]|17[6|7])\d{8}$/,
+								regexText:'手机号码不符合规范'},
+								//{xtype:'textfield',fieldLabel:'职务'},
+							]
+						}
+					],
+					buttons:[
+						{xtype:'button',text:'保存',handler:save}
+					]
+				});
+				function save(){
+				//获取表单数据,为表单的所有值
+	            //oRecord = form.getForm().getRecord();
+	  			 var url = 'ctl_sellusers.fsp?proc=save';
+//                 if (opcode == 1){url = url + 'add' };
+//                 if (opcode == 2){url = url + 'edit'}                     
+	              userForm.getForm().submit({
+                    method:'POST',
+                    url:url,					
+                    /*注意，保存后的success和failure，传入的参数有form
+                    * 在定义表单变量时：var form = new Ext.form.Panel 
+                    * 如果象上面定义表单变量也为form，会出现冲突
+                    * 所以，可以这样命名 var bookform = new Ext.form.Panel
+                    */
+                    success:function(form,action){
+                        console.log('action:',action);                              
+                        //oRecord = bookform.getForm().getValues();
+                        //bookform.getForm().updateRecord(oRecord);
+                        //console.log('rec:',oRecord);   //这里取到的id是空值
+ 
+                       /*到此之前，oRecord中的id是前端的id值，所以id为空
+                       * success中的action参数，是从后台返回的，可以有id值 
+                       * action.result.id取回后台返回的id值
+                       */                     
+// 						oRecord.id = action.result.id;   //把id值写到oRecord中
+//                         store.insert(0,oRecord);
+//                         store.commitChanges();
+//                         win.hide();
+//                         opcode = 2;
+                        Ext.Msg.alert('提示','保存成功');
+					},
+					fail:function(form,action){
+						console.log('fail',action)
+					}
+	            //form.getForm().updateRecord(oRecord);    //数据修改后,回写到表格中       
+	            //store.commitChanges();     //store提交改变,去掉表格中的小红点				  
+				})
+				}	
+			})
+		</script>
+	</body>
+</html>
